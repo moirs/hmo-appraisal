@@ -1,0 +1,23 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {defaults,calculate,validate} from '../dist/model.js';
+import {mapTemplate} from '../dist/xlsx.js';
+const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
+test('Baseline costs and rent match the workbook; capital recovery reconciles',()=>{
+ const p=defaults(),a=calculate(p,0),b=calculate(p,1);
+ for(const [r,cost,bridge,initial,surplus,left] of [[a,644200,35343.75,172950,856.25,-856.25],[b,642200,28275,170950,9925,-9925]]){
+  near(r.cost,cost);near(r.bridge,bridge);near(r.initial,initial);near(r.surplus,surplus);near(r.left,left);near(r.value,907200);near(r.refinance,680400);near(r.management,576);near(r.mortgage,2835);near(r.net,2789);
+ }
+});
+test('All twelve prescribed rent/delay combinations reconcile',()=>{for(let i=0;i<2;i++)for(const rent of [-10,0,10])for(const d of [0,1,3,6]){const p=defaults(),r=calculate(p,i,rent,d),o=p.options[i];near(r.value,907200*(1+rent/100));near(r.bridge,471250*(o.fees/100+o.monthlyRate/100*(4+d)));near(r.allIn+r.surplus,r.refinance);near(r.left+r.surplus,0);near(r.initial-r.cashReturned,r.left);near(r.net,r.collectedRent-r.management-r.mortgage-1000);}});
+test('Delay adds interest and postpones rent without changing stabilised income',()=>{const p=defaults(),a=calculate(p),b=calculate(p,0,0,3);near(b.bridge-a.bridge,17671.875);near(b.net,a.net);assert.equal(b.duration,7);});
+test('Occupancy reduces rent and management, keeps full-occupancy valuation',()=>{const p=defaults();p.occupancy=90;const r=calculate(p);near(r.collectedRent,6480);near(r.management,518.4);near(r.value,907200);near(r.net,2126.6);p.occupancy=0;near(calculate(p).net,-3835);});
+test('Manual valuation overrides rent sensitivity until cleared',()=>{const p=defaults();p.valuationOverride=850000;near(calculate(p,0,-10).value,850000);near(calculate(p,0,10).value,850000);p.valuationOverride=null;near(calculate(p,0,-10).value,816480);});
+test('Build changes borrowing and finance and unfunded build increases initial cash',()=>{const p=defaults();p.build=260000;near(calculate(p).borrowed,481250);p.options[0].buildFunding=50;near(calculate(p).borrowed,351250);near(calculate(p).initial,302950);});
+test('Project validation rejects missing inputs, malformed options and invalid ranges',()=>{for(const mutate of [p=>p.rooms=0,p=>p.occupancy=101,p=>p.management=-1,p=>p.options=[],p=>delete p.purchase,p=>p.valuationOverride=0,p=>p.options[0].monthlyRate=null]){const p=defaults();mutate(p);assert.throws(()=>validate(p));}assert.deepEqual(validate(defaults()),defaults());});
+test('Habiti template import uses source inputs rather than duplicated outputs',()=>{const c={D4:'Purchase price',D9:'build',C4:295000,C5:19500,C6:7200,C7:6000,C8:1500,C9:250000,C10:60000,C11:5000,F7:1000,C15:'GDV CALCULATION',C16:900,C17:8,C21:10.5,F16:221250,F17:250000,F18:471250,F20:.025,G21:'4 months x 1.25% per month',C23:907200,C24:680400,F5:34020,I16:.08,J16:'Management rate'};const r=mapTemplate([{name:'A',cells:c}],defaults);near(r.project.rent,900);near(r.project.management,8);near(r.project.options[0].monthlyRate,1.25);near(calculate(r.project).net,2789);assert.ok(r.warnings.length);});
+
+ test('Cashback, capital recovery and adjustable LTV reconcile independently',()=>{const p=defaults(),r=calculate(p,1);near(r.cashbackBeforeBridge,38200);near(r.surplus,9925);near(r.initial,170950);near(r.cashReturned,180875);near(r.remaining,0);near(r.extraReleased,9925);near(r.recoveryCash,165950);near(r.monthsToAllOut,165950/2789);near(r.equity,226800);p.refinanceLtv=70;const low=calculate(p,1);near(low.refinance,635040);near(low.mortgage,2646);near(low.net,2978);near(low.left,35435);near(low.monthsToAllOut,165950/2978);});
+ test('Months of income handles downside, extra months and no rental surplus',()=>{const p=defaults(),r=calculate(p,1,-10,3);near(r.remaining,72252.5);near(r.monthsToAllOut,165950/2410.1);p.occupancy=0;assert.equal(calculate(p,1,-10,3).monthsToAllOut,null);assert.equal(calculate(p,1).monthsToAllOut,null);});
+
+test('Income recovery uses exactly the six agreed inputs and ignores refinance cash and delays',()=>{const p=defaults();near(calculate(p,0).recoveryCash,167950);near(calculate(p,0).monthsToAllOut,167950/2789);near(calculate(p,1).monthsToAllOut,165950/2789);near(calculate(p,1,0,6).monthsToAllOut,calculate(p,1).monthsToAllOut);p.misc+=10000;p.build+=50000;p.options[1].purchaseLtv=60;near(calculate(p,1).recoveryCash,165950);near(calculate(p,1).monthsToAllOut,165950/2789);p.options[1].legal+=1000;near(calculate(p,1).monthsToAllOut,166950/2789);});
