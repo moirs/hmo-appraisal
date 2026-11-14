@@ -36,6 +36,9 @@ export function mapTemplate(sheets,defaults){
  Object.assign(p,{rent:num(first,'C'+rentRow),rooms:num(first,'C'+(rentRow+1)),multiplier:num(first,'C'+(rentRow+5))});
  p.management=typeof first.I16==='number'&&first.J16==='Management rate'?first.I16*100:8;
  p.valuationOverride=typeof first.I13==='number'&&first.I13>0?first.I13:null;
+ const usedValuation=first['C'+(rentRow+7)],indicative=p.rent*p.rooms*12*p.multiplier;
+ if(p.valuationOverride===null&&typeof usedValuation==='number'&&Math.abs(usedValuation-indicative)>0.01){p.valuationOverride=usedValuation;warnings.push('The worksheet valuation differs from rent × multiplier; its entered valuation is preserved in manual mode.');}
+ p.extras.valuationMode=p.valuationOverride===null?'multiplier':'manual';p.extras.valuationModeExplicit=true;
  for(let i=0;i<2;i++){
   const s=supported[i];if(!s){warnings.push('Only one matching sheet found; Option B keeps the starter finance terms.');continue;}
   const c=s.cells,r=c.C15==='GDV CALCULATION'?16:15,bridge=num(c,'F'+(r+2));
