@@ -1,6 +1,7 @@
 import {renderMetrics,advancedInputs,setupSensitivity,renderSensitivity,comparison} from './metrics-ui.js';
 import {defaults,calculate,validate} from './model.js';
 import {readWorkbook,mapTemplate} from './xlsx.js';
+import {createViabilityUI} from './viability-ui.js';
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>n===null||!Number.isFinite(n)?'N/A':new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0}).format(n);
@@ -16,6 +17,7 @@ const key='hmo-appraisal-v1';let project=defaults(),active=0,tab='property',shif
 try{const saved=localStorage.getItem(key);if(saved)project=validate(JSON.parse(saved));}catch{try{localStorage.setItem(key+'-backup',localStorage.getItem(key)||'');}catch{}}
 function notice(message,error=false){const n=$('#notice');n.textContent=message;n.classList.toggle('error',error);n.hidden=false;}
 function persist(){try{localStorage.setItem(key,JSON.stringify(project));$('.privacy').innerHTML='<i></i> Saved on this device';}catch{$('.privacy').textContent='Use Save project to keep changes';}}
+const renderViability=createViabilityUI(document.querySelector('#dealViability'),v=>{const candidate=validate({...project,viability:v});project=candidate;render();persist();});
 const field=(path,label,{unit='£',step='any',min=0,max='',hint='',optional=false}={})=>{
  const parts=path.split('.');let val=project;for(const p of parts)val=val[p];
  return `<label class="field"><span>${label}</span><div class="input-wrap">${unit==='£'?'<b>£</b>':''}<input type="number" data-path="${path}" aria-label="${label}" value="${val??''}" min="${optional?'0.01':min}" ${max!==''?`max="${max}"`:''} step="${step}" ${optional?'':'required'} class="${unit==='£'?'money':unit?'has-suffix':''}" placeholder="${optional?'Use calculated value':''}">${unit&&unit!=='£'?`<b class="suffix">${unit}</b>`:''}</div>${hint?`<small>${hint}</small>`:''}</label>`;
@@ -61,6 +63,7 @@ function render(){const o=project.options[active],r=calculate(project,active,shi
  $$('[data-delay]').forEach(b=>{b.classList.toggle('active',+b.dataset.delay===delay);b.setAttribute('aria-pressed',String(+b.dataset.delay===delay));});
  $('#rentShift').value=shift;$('#rentShiftLabel').textContent=signed(shift);
  $('#financeSummary').textContent=`${o.monthlyRate}% / ${o.interestFrequency==='annual'?'year':'month'} · ${o.fees}% combined fees · ${r.duration.toFixed(1)}-month bridge assumption`;
+ renderViability(project,active,r.input,`${o.name} · ${shift||delay||Object.keys(stress).length?'Current scenario':'Base appraisal'}`);
  renderMetrics(project,active,r);$('#rentChart').innerHTML=lineChart();$('#bridgeChart').innerHTML=barChart();renderMatrix();comparison(project,shift,delay,stress);renderSensitivity(project,active);
  $('#activeStress').textContent=Object.keys(stress).length?'Temporary stress: '+Object.entries(stress).map(([k,v])=>k+' '+v).join(', '):'Baseline assumptions · rent and delay controls below';
  $('#calcAnnouncement').textContent='Updated: monthly cash flow '+money(r.net)+', cash left in deal '+cashText(r.left)+', DSCR '+(r.dscr===null?'not available':r.dscr.toFixed(2));
