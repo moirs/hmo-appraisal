@@ -41,6 +41,11 @@ Optional blank costs count as zero for estimates, not verified zero expenses. Ad
 
 ## Source and deployment
 
-`dist/` is the complete standalone website. `test/` contains 31 automated financial and migration tests. `docs/metrics-audit.md` records the inspection, changes and browser checks. The Sites hosting binding is kept in the separate Sites source repository and is excluded from this GitHub mirror.
+`dist/` is the complete standalone website. `test/` contains 49 automated financial, viability and migration tests. `docs/metrics-audit.md` records the original metric inspection. The Sites hosting binding is kept in the separate Sites source repository and is excluded from this GitHub mirror.
 
 This personal GitHub repository is a separately synchronised source mirror; Sites deployments do not automatically update it. The included GitHub Pages workflow is manually triggered and can publish `dist` once Pages is enabled with GitHub Actions. Review visibility and account-plan requirements before enabling Pages. Never commit exported user projects or personal workbooks. The updated source ZIP includes this complete implementation.
+# Deal Viability
+
+The dashboard adds an explainable financial appraisal score with GO candidate / REVIEW / NO-GO bands. It works directly from spreadsheet inputs and selected assumptions, using estimated capital recycling and positive downside cash flow. No extra manual entries are required for a normal imported deal. Optional available-investor-funds and buffer entries provide a separate funding check; an optional due-diligence checklist preserves saved evidence without affecting the score. Settings, funding and evidence travel with saved JSON projects and remain on your device.
+
+See [the implementation and financial audit](docs/viability-audit.md) for formulas, recovery-threshold reconciliation, downside funding assumptions, verification and unavailable-data cases. This layer reuses the existing financial calculations and preserves the appraisal summary.
